@@ -1,0 +1,411 @@
+═══════════════════════════════════════════════════════════════════════════
+   INSTRUCȚIUNI PENTRU CONFIGURAREA TASK SCHEDULER
+   PDF Downloader - Rulare Automată Zilnică la 04:30 AM
+═══════════════════════════════════════════════════════════════════════════
+
+
+📋 FIȘIERE GENERATE:
+═══════════════════════════════════════════════════════════════════════════
+
+1. PDF_Downloader_Task.xml
+   - Definiția task-ului pentru Windows Task Scheduler
+   - Configurare: zilnic la 04:30 AM
+   - Wake computer dacă este în sleep mode
+
+2. Run_PDF_Downloader.bat
+   - Script batch care rulează scriptul Python
+   - Generează log-uri automate în D:\TEST\Logs\
+   - Găsește automat Python în system
+
+3. IMPORT_Task_Scheduler.bat
+   - Script pentru importare automată a task-ului
+   - TREBUIE rulat ca Administrator!
+
+4. INSTRUCȚIUNI Task Scheduler.txt
+   - Acest fișier - ghid complet de utilizare
+
+
+═══════════════════════════════════════════════════════════════════════════
+   METODA 1: IMPORTARE AUTOMATĂ (RECOMANDATĂ)
+═══════════════════════════════════════════════════════════════════════════
+
+PAS 1: Rulează IMPORT_Task_Scheduler.bat ca Administrator
+────────────────────────────────────────────────────────────────────────────
+   1. Găsește fișierul: D:\TEST\IMPORT_Task_Scheduler.bat
+   2. Click DREAPTA pe fișier
+   3. Selectează "Run as administrator"
+   4. Aprobă UAC prompt (dacă apare)
+   5. Așteaptă mesajul de SUCCES
+
+   ✅ GATA! Task-ul este configurat și activ!
+
+
+PAS 2: Verificare (Opțional)
+────────────────────────────────────────────────────────────────────────────
+   1. Apasă Windows + R
+   2. Tastează: taskschd.msc
+   3. Apasă Enter
+   4. Caută în lista de task-uri: "PDF Downloader Daily"
+   5. Click dreapta → Properties pentru a vedea detaliile
+
+
+═══════════════════════════════════════════════════════════════════════════
+   METODA 2: IMPORTARE MANUALĂ (prin Task Scheduler GUI)
+═══════════════════════════════════════════════════════════════════════════
+
+PAS 1: Deschide Task Scheduler
+────────────────────────────────────────────────────────────────────────────
+   1. Apasă Windows + R
+   2. Tastează: taskschd.msc
+   3. Apasă Enter
+
+
+PAS 2: Importă task-ul
+────────────────────────────────────────────────────────────────────────────
+   1. În Task Scheduler, click pe "Action" (sus)
+   2. Selectează "Import Task..."
+   3. Navighează la: D:\TEST\PDF_Downloader_Task.xml
+   4. Click "Open"
+
+
+PAS 3: Configurează (opțional - setările sunt deja corecte)
+────────────────────────────────────────────────────────────────────────────
+   1. În fereastra care se deschide, verifică:
+      - General tab:
+        ✓ "Run whether user is logged on or not" (opțional)
+        ✓ "Run with highest privileges"
+      
+      - Triggers tab:
+        ✓ Daily
+        ✓ Start time: 4:30:00 AM
+        ✓ Recur every: 1 days
+      
+      - Actions tab:
+        ✓ Start a program
+        ✓ Program: D:\TEST\Run_PDF_Downloader.bat
+        ✓ Start in: D:\TEST
+      
+      - Conditions tab:
+        ✓ Start only if network available: DA
+        ✓ Wake the computer to run this task: DA (dacă vrei)
+        ✓ Start task if on batteries: DA
+      
+      - Settings tab:
+        ✓ Allow task to be run on demand: DA
+        ✓ If the task fails, restart every: 10 minutes (opțional)
+        ✓ Stop the task if it runs longer than: 1 day
+
+
+PAS 4: Salvează
+────────────────────────────────────────────────────────────────────────────
+   1. Click "OK"
+   2. Dacă ți se cere, introdu username-ul și parola Windows
+   3. Task-ul este acum activ!
+
+
+═══════════════════════════════════════════════════════════════════════════
+   COMENZI UTILE (CMD cu Administrator)
+═══════════════════════════════════════════════════════════════════════════
+
+Verificare task:
+   schtasks /Query /TN "PDF Downloader Daily"
+
+Rulare manuală (test):
+   schtasks /Run /TN "PDF Downloader Daily"
+
+Dezactivare task:
+   schtasks /Change /TN "PDF Downloader Daily" /Disable
+
+Activare task:
+   schtasks /Change /TN "PDF Downloader Daily" /Enable
+
+Ștergere task:
+   schtasks /Delete /TN "PDF Downloader Daily" /F
+
+Vizualizare ultimul rezultat:
+   schtasks /Query /TN "PDF Downloader Daily" /V /FO LIST
+
+
+═══════════════════════════════════════════════════════════════════════════
+   VERIFICARE FUNCȚIONARE
+═══════════════════════════════════════════════════════════════════════════
+
+TEST 1: Rulare manuală batch script
+────────────────────────────────────────────────────────────────────────────
+   1. Deschide CMD
+   2. Navighează: cd /d D:\TEST
+   3. Rulează: Run_PDF_Downloader.bat
+   4. Verifică că scriptul pornește și că se creează log în D:\TEST\Logs\
+
+
+TEST 2: Rulare manuală task
+────────────────────────────────────────────────────────────────────────────
+   1. Deschide Task Scheduler (taskschd.msc)
+   2. Găsește "PDF Downloader Daily"
+   3. Click dreapta → Run
+   4. Verifică în D:\TEST\Logs\ că s-a creat un log nou
+
+
+TEST 3: Verificare log-uri
+────────────────────────────────────────────────────────────────────────────
+   Locație log-uri: D:\TEST\Logs\
+   Format nume: PDF_Downloader_YYYYMMDD_HHMMSS.log
+   
+   Verifică:
+   ✓ Fișierul log există
+   ✓ Conține output-ul scriptului Python
+   ✓ Se vede dacă scriptul s-a terminat cu succes sau eroare
+
+
+═══════════════════════════════════════════════════════════════════════════
+   MONITORIZARE ȘI ÎNTREȚINERE
+═══════════════════════════════════════════════════════════════════════════
+
+Verificare zilnică:
+────────────────────────────────────────────────────────────────────────────
+   1. Deschide Task Scheduler
+   2. Selectează task-ul "PDF Downloader Daily"
+   3. Verifică în panoul de jos:
+      - Last Run Time: ar trebui să fie azi la 04:30
+      - Last Run Result: 0x0 (succes) sau alt cod
+      - Next Run Time: mâine la 04:30
+
+
+Verificare log-uri:
+────────────────────────────────────────────────────────────────────────────
+   D:\TEST\Logs\
+   
+   Verifică ultimul fișier log pentru:
+   ✓ Erori de Python
+   ✓ Probleme de CAPTCHA
+   ✓ Limită zilnică atinsă
+   ✓ Număr de PDF-uri descărcate
+
+
+Curățare log-uri vechi:
+────────────────────────────────────────────────────────────────────────────
+   Log-urile se adună în timp. Recomandare:
+   - Păstrează ultimele 30 de zile
+   - Șterge manual log-urile mai vechi de 1 lună
+   
+   SAU creează un script de cleanup automat:
+   forfiles /p "D:\TEST\Logs" /m *.log /d -30 /c "cmd /c del @path"
+
+
+═══════════════════════════════════════════════════════════════════════════
+   TROUBLESHOOTING (PROBLEME FRECVENTE)
+═══════════════════════════════════════════════════════════════════════════
+
+PROBLEMA: Task-ul nu pornește la ora programată
+────────────────────────────────────────────────────────────────────────────
+Soluții:
+   1. Verifică că Task Scheduler service rulează:
+      - Windows + R → services.msc → "Task Scheduler"
+      - Status ar trebui să fie "Running"
+   
+   2. Verifică că computerul este pornit la 04:30
+      - SAU activează "Wake the computer to run this task"
+   
+   3. Verifică trigger-ul:
+      - Task Scheduler → selectează task-ul → Triggers tab
+      - Asigură-te că e setat corect la 04:30 AM
+   
+   4. Verifică History:
+      - Task Scheduler → selectează task-ul → History tab
+      - Caută erori sau avertismente
+
+
+PROBLEMA: Task-ul pornește dar scriptul nu rulează
+────────────────────────────────────────────────────────────────────────────
+Soluții:
+   1. Verifică log-ul din D:\TEST\Logs\
+      - Ar trebui să conțină eroarea exactă
+   
+   2. Verifică calea la Python:
+      - Deschide CMD
+      - Tastează: where python
+      - Dacă nu găsește, adaugă Python la PATH
+   
+   3. Verifică calea la script:
+      - Asigură-te că D:\TEST\Claude-FINAL 13 - BUN Sterge pdf pe G.py există
+   
+   4. Test manual:
+      - Deschide CMD ca Administrator
+      - cd /d D:\TEST
+      - Run_PDF_Downloader.bat
+
+
+PROBLEMA: Script rulează dar dă erori
+────────────────────────────────────────────────────────────────────────────
+Soluții:
+   1. Verifică eroarea în log (D:\TEST\Logs\)
+   
+   2. Erori comune:
+      - CAPTCHA: așteaptă 7 minute automat
+      - Limită zilnică: normal, scriptul se va opri
+      - Driver Chrome: actualizează Chrome și chromedriver
+      - Module lipsă: pip install <module_name>
+   
+   3. Rulează manual pentru debugging:
+      - Deschide CMD
+      - cd /d D:\TEST
+      - python "Claude-FINAL 13 - BUN Sterge pdf pe G.py"
+
+
+PROBLEMA: Task-ul rulează multiplu (overlap)
+────────────────────────────────────────────────────────────────────────────
+Soluție:
+   1. Task Scheduler → selectează task-ul
+   2. Properties → Settings tab
+   3. "If the task is already running" → selectează:
+      - "Do not start a new instance" (RECOMANDAT)
+   
+   Task-ul XML este deja configurat cu:
+   <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+
+
+PROBLEMA: Computerul nu se trezește din sleep la 04:30
+────────────────────────────────────────────────────────────────────────────
+Soluții:
+   1. Activează "Wake to run this task":
+      - Task Scheduler → task → Properties
+      - Conditions tab
+      - ✓ "Wake the computer to run this task"
+   
+   2. Verifică Power Options:
+      - Control Panel → Power Options
+      - Change plan settings → Change advanced settings
+      - Sleep → Allow wake timers → Enable
+   
+   3. Verifică în CMD (Administrator):
+      powercfg /waketimers
+      - Ar trebui să vezi task-ul listat
+   
+   4. Activează wake timers în registry (dacă e necesar):
+      - Windows + R → regedit
+      - HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerSettings
+      - Caută "Allow wake timers" și setează la Enabled
+
+
+═══════════════════════════════════════════════════════════════════════════
+   MODIFICĂRI AVANSATE
+═══════════════════════════════════════════════════════════════════════════
+
+Schimbarea orei de rulare:
+────────────────────────────────────────────────────────────────────────────
+   Metodă 1 (GUI):
+   1. Task Scheduler → selectează task-ul
+   2. Properties → Triggers tab
+   3. Double-click pe trigger
+   4. Schimbă ora în "Start time"
+   5. OK → OK
+   
+   Metodă 2 (XML):
+   1. Deschide PDF_Downloader_Task.xml în Notepad
+   2. Găsește: <StartBoundary>2025-11-07T04:30:00</StartBoundary>
+   3. Schimbă 04:30:00 cu ora dorită (ex: 06:00:00)
+   4. Salvează
+   5. Re-importă task-ul folosind IMPORT_Task_Scheduler.bat
+
+
+Adăugare rulare multiplă pe zi:
+────────────────────────────────────────────────────────────────────────────
+   1. Task Scheduler → selectează task-ul
+   2. Properties → Triggers tab
+   3. Click "New..."
+   4. Setează a doua oră (ex: 16:30 pentru 4:30 PM)
+   5. OK → OK
+   
+   Acum task-ul va rula la 04:30 AM și 16:30 PM
+
+
+Dezactivare temporară (vacanță):
+────────────────────────────────────────────────────────────────────────────
+   CMD (Administrator):
+   schtasks /Change /TN "PDF Downloader Daily" /Disable
+   
+   Pentru reactivare:
+   schtasks /Change /TN "PDF Downloader Daily" /Enable
+
+
+Notificări email la erori (avansat):
+────────────────────────────────────────────────────────────────────────────
+   Necesită configurare SMTP. Modifică Run_PDF_Downloader.bat să trimită
+   email folosind PowerShell sau un tool extern (blat, sendmail, etc.)
+
+
+═══════════════════════════════════════════════════════════════════════════
+   BACKUP ȘI RESTAURARE
+═══════════════════════════════════════════════════════════════════════════
+
+Backup task:
+────────────────────────────────────────────────────────────────────────────
+   Fișierul PDF_Downloader_Task.xml ESTE backup-ul!
+   Păstrează-l în siguranță, poți re-importa oricând.
+
+
+Export task existent:
+────────────────────────────────────────────────────────────────────────────
+   1. Task Scheduler → selectează task-ul
+   2. Click dreapta → Export...
+   3. Salvează XML-ul
+
+
+Restaurare task:
+────────────────────────────────────────────────────────────────────────────
+   Rulează din nou IMPORT_Task_Scheduler.bat ca Administrator
+
+
+═══════════════════════════════════════════════════════════════════════════
+   CHECKLIST FINAL
+═══════════════════════════════════════════════════════════════════════════
+
+□ Am rulat IMPORT_Task_Scheduler.bat ca Administrator
+□ Am verificat că task-ul apare în Task Scheduler
+□ Am testat rularea manuală și funcționează
+□ Am verificat că se creează log-uri în D:\TEST\Logs\
+□ Am verificat Next Run Time: mâine la 04:30
+□ Am configurat Wake to run (dacă vreau ca PC-ul să se trezească)
+□ Am verificat că scriptul găsește Python corect
+□ Am testat că scriptul descarcă PDF-uri corect
+
+
+═══════════════════════════════════════════════════════════════════════════
+   INFORMAȚII SUPLIMENTARE
+═══════════════════════════════════════════════════════════════════════════
+
+Configurare task XML:
+────────────────────────────────────────────────────────────────────────────
+   Trigger: Daily la 04:30 AM
+   Script: D:\TEST\Run_PDF_Downloader.bat
+   Working Directory: D:\TEST
+   Run as: Current User cu Highest Privileges
+   Wake Computer: DA (dacă e în sleep)
+   Run on batteries: DA
+   Network required: DA
+   Multiple instances: IgnoreNew (nu pornește dacă deja rulează)
+   Time limit: 24 ore (se oprește automat după 24h)
+
+
+Locații importante:
+────────────────────────────────────────────────────────────────────────────
+   Script Python: D:\TEST\Claude-FINAL 13 - BUN Sterge pdf pe G.py
+   Batch runner: D:\TEST\Run_PDF_Downloader.bat
+   Task XML: D:\TEST\PDF_Downloader_Task.xml
+   Log-uri: D:\TEST\Logs\PDF_Downloader_*.log
+   State JSON: D:\TEST\state.json (generat de script)
+
+
+Resurse Windows:
+────────────────────────────────────────────────────────────────────────────
+   Task Scheduler: taskschd.msc
+   Services: services.msc
+   Event Viewer: eventvwr.msc
+   Power Options: powercfg.cpl
+
+
+═══════════════════════════════════════════════════════════════════════════
+   SUCCES! Task-ul este gata de utilizare!
+   La 04:30 AM în fiecare zi, scriptul va porni automat și va descărca PDF-uri.
+═══════════════════════════════════════════════════════════════════════════
+
