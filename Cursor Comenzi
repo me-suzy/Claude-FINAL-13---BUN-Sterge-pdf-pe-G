@@ -1,0 +1,566 @@
+## 🎯 LISTĂ COMPLETĂ - Comenzi pentru Cursor Chat
+
+---
+
+## 📦 1. DEPENDENCIES & PACKAGES
+
+```
+"instalează toate dependencies din requirements.txt"
+
+"instalează rapidfuzz library"
+
+"pip install requests beautifulsoup4 lxml"
+
+"verifică ce pachete lipsesc și instalează-le"
+
+"creează un requirements.txt cu toate dependencies"
+
+"actualizează toate pachetele la latest version"
+
+"dezinstalează pachetul X și instalează Y"
+
+"verifică versiunea de Python instalată"
+
+"creează un virtual environment și activează-l"
+
+"instalează dependencies în venv"
+
+"arată-mi ce module sunt importate și dacă sunt instalate"
+```
+
+---
+
+## ▶️ 2. RULARE SCRIPT & DEBUGGING
+
+```
+"rulează scriptul main.py"
+
+"rulează scriptul și arată-mi toate erorile"
+
+"rulează cu verbose output"
+
+"rulează scriptul cu argumentul --debug"
+
+"execută scriptul și salvează outputul în log.txt"
+
+"rulează și oprește la prima eroare"
+
+"testează scriptul cu input-ul X"
+
+"rulează toate testele unit"
+
+"execută scriptul în background"
+
+"verifică sintaxa fără să rulezi"
+
+"python -m pdb main.py (debug mode)"
+
+"rulează profilingu pentru a vedea bottlenecks"
+```
+
+---
+
+## 🐛 3. ERROR HANDLING & DEBUGGING
+
+```
+"analizează ultima eroare din terminal"
+
+"arată-mi traceback-ul complet"
+
+"de ce primesc KeyError aici?"
+
+"debug această funcție și arată flow-ul"
+
+"verifică de ce variabila X este None"
+
+"print toate variabilele din funcția Y"
+
+"adaugă breakpoints pentru debugging"
+
+"arată-mi call stack-ul"
+
+"verifică memory leaks"
+
+"monitorizează CPU și RAM usage"
+```
+
+---
+
+## 🔄 4. GIT & VERSION CONTROL
+
+```
+"git status - arată ce am modificat"
+
+"commit changes cu mesajul 'Fixed search bug'"
+
+"git add . și commit cu mesaj descriptiv"
+
+"creează un nou branch feature/cleanup"
+
+"switch la branch main"
+
+"merge branch-ul feature în main"
+
+"arată diferențele față de ultima versiune"
+
+"revert la commit-ul anterior"
+
+"git log - arată ultimele 10 commits"
+
+"push changes la remote"
+
+"pull latest changes"
+
+"creează .gitignore pentru Python"
+
+"stash current changes"
+
+"cherry-pick commit X"
+
+"squash ultimele 3 commits"
+
+"tag versiunea ca v1.0.0"
+
+"arată cine a modificat fișierul X (git blame)"
+```
+
+---
+
+## 📁 5. FILE & FOLDER OPERATIONS
+
+```
+"listează toate fișierele .py din folder"
+
+"creează folderul logs dacă nu există"
+
+"șterge toate fișierele .pyc"
+
+"redenumește fișierul old.py în new.py"
+
+"copiază fișierul config.py în backup/"
+
+"mută toate PDF-urile în folder arhiva/"
+
+"comprimă folderul X în archive.zip"
+
+"extrage archive.zip"
+
+"găsește toate fișierele modificate azi"
+
+"arată dimensiunea folderului X"
+
+"caută textul 'TODO' în toate fișierele"
+
+"înlocuiește 'old_name' cu 'new_name' în toate fișierele"
+
+"numără linii de cod în proiect"
+```
+
+---
+
+## 🧪 6. TESTING
+
+```
+"rulează toate unit tests"
+
+"creează unit tests pentru funcția clean_search_query"
+
+"testează funcția X cu input-ul Y"
+
+"rulează pytest cu coverage report"
+
+"testează edge cases pentru această funcție"
+
+"creează mock data pentru testing"
+
+"benchmark această funcție (măsoară timpul)"
+
+"stress test - rulează de 1000 ori"
+
+"verifică dacă funcția trece toate testele"
+
+"generează test fixtures"
+```
+
+---
+
+## 📊 7. PERFORMANCE & OPTIMIZATION
+
+```
+"profile scriptul și arată unde e lent"
+
+"măsoară timpul de execuție pentru funcția X"
+
+"optimizează această funcție pentru speed"
+
+"arată-mi memory usage"
+
+"detectează infinite loops"
+
+"găsește bottlenecks în cod"
+
+"compară performanța înainte/după optimizare"
+
+"monitorizează CPU usage în timp real"
+
+"reduce memory footprint"
+```
+
+---
+
+## 🗄️ 8. DATABASE & DATA
+
+```
+"conectează-te la database și rulează query"
+
+"exportă rezultatele în CSV"
+
+"importă date din Excel"
+
+"parse JSON file și arată structura"
+
+"convertește CSV în JSON"
+
+"validează formatul XML"
+
+"backup database în fișier"
+
+"arată primele 10 rânduri din tabel"
+
+"query all books where author = 'Roberts'"
+```
+
+---
+
+## 🌐 9. WEB & API
+
+```
+"testează API endpoint cu curl"
+
+"fetch data from URL X și salvează în fișier"
+
+"verifică dacă website-ul Y este activ"
+
+"download fișierul de pe URL Z"
+
+"parse HTML și extrage toate link-urile"
+
+"arată HTTP headers pentru request"
+
+"testează rate limiting"
+
+"mock API responses pentru testing"
+```
+
+---
+
+## 🔍 10. SEARCH & FIND
+
+```
+"găsește toate funcțiile care conțin 'search'"
+
+"caută în tot proiectul după pattern X"
+
+"find all files modified in last 24 hours"
+
+"grep pentru 'TODO' în toate fișierele"
+
+"arată unde este definită funcția Y"
+
+"găsește toate importurile nefolosite"
+
+"caută duplicate code"
+
+"find all print statements (pentru cleanup)"
+```
+
+---
+
+## 📝 11. DOCUMENTATION
+
+```
+"generează docstrings pentru toate funcțiile"
+
+"creează README.md pentru proiect"
+
+"documentează această funcție"
+
+"generează API documentation"
+
+"creează changelog pentru versiunea 1.0"
+
+"generează type hints pentru funcția X"
+
+"creează usage examples"
+
+"generează sphinx documentation"
+```
+
+---
+
+## 🛠️ 12. CODE QUALITY
+
+```
+"rulează pylint pe fișierul X"
+
+"verifică PEP8 compliance"
+
+"find all code smells"
+
+"refactor pentru clean code"
+
+"verifică complexitatea ciclomatică"
+
+"găsește unused variables"
+
+"detectează dead code"
+
+"arată duplicated code"
+
+"check security vulnerabilities"
+
+"validate type hints"
+```
+
+---
+
+## 🔒 13. SECURITY
+
+```
+"scanează pentru security issues"
+
+"verifică dependencies pentru vulnerabilități"
+
+"arată hardcoded secrets/passwords"
+
+"audit cod pentru SQL injection"
+
+"check pentru XSS vulnerabilities"
+
+"validează input sanitization"
+
+"encrypt fișierul config.py"
+
+"generează secret key"
+```
+
+---
+
+## 📦 14. BUILD & DEPLOYMENT
+
+```
+"creează executabil cu PyInstaller"
+
+"build Docker image"
+
+"creează package distributable"
+
+"freeze dependencies exact versions"
+
+"setup.py - creează package configuration"
+
+"build wheel package"
+
+"publish pe PyPI"
+
+"deploy pe Heroku"
+
+"creează Dockerfile"
+```
+
+---
+
+## 🧹 15. CLEANUP & MAINTENANCE
+
+```
+"șterge toate fișierele __pycache__"
+
+"cleanup unused imports"
+
+"remove all commented code"
+
+"format code cu black"
+
+"sort imports cu isort"
+
+"remove trailing whitespaces"
+
+"fix all linting errors"
+
+"cleanup log files older than 30 days"
+
+"remove duplicate files"
+```
+
+---
+
+## 📈 16. MONITORING & LOGGING
+
+```
+"tail -f log.txt (live log monitoring)"
+
+"arată ultimele 50 linii din log"
+
+"grep errors în log files"
+
+"count how many errors în ultimele 24h"
+
+"export logs to CSV"
+
+"setup logging configuration"
+
+"rotate log files"
+
+"monitor disk space"
+
+"track memory usage over time"
+```
+
+---
+
+## 🎨 17. FORMATTING & STYLE
+
+```
+"formatează tot codul cu black"
+
+"aplică PEP8 styling"
+
+"sort all imports alphabetically"
+
+"reformat strings to f-strings"
+
+"align code comments"
+
+"fix indentation issues"
+
+"convert tabs to spaces"
+
+"wrap long lines la 80 chars"
+```
+
+---
+
+## 🔗 18. DEPENDENCIES GRAPH
+
+```
+"arată dependency tree pentru proiect"
+
+"ce pachete depind de requests?"
+
+"visualize import structure"
+
+"detect circular dependencies"
+
+"find unused dependencies"
+
+"update outdated packages"
+
+"check compatibility matrix"
+```
+
+---
+
+## 💾 19. BACKUP & RECOVERY
+
+```
+"backup complet proiect în ZIP"
+
+"creează snapshot înainte de refactoring"
+
+"restore din backup_2024.zip"
+
+"sync cu cloud storage"
+
+"export database schema"
+
+"backup configuration files"
+
+"create recovery point"
+```
+
+---
+
+## 🚀 20. AUTOMATION
+
+```
+"creează script bash pentru deploy"
+
+"setup GitHub Actions workflow"
+
+"configurează pre-commit hooks"
+
+"automate testing on save"
+
+"schedule cron job pentru cleanup"
+
+"setup CI/CD pipeline"
+
+"create automation script"
+```
+
+---
+
+## 🎯 COMENZI COMBINATE (CELE MAI UTILE)
+
+```
+"1. instalează dependencies
+ 2. rulează testele
+ 3. dacă toate trec, commit și push"
+
+"analizeză erorile din log, fix-uiește-le, 
+ rulează din nou și confirmă că merge"
+
+"profile scriptul, găsește bottlenecks,
+ optimizează și măsoară îmbunătățirea"
+
+"lint all code, fix issues, format cu black,
+ commit changes"
+
+"backup proiect, șterge fișiere vechi,
+ cleanup logs, commit"
+
+"run tests, generate coverage report,
+ commit if >90% coverage"
+
+"git status, arată-mi ce pot commit,
+ creează commit message descriptiv"
+
+"instalează dependencies lipsă,
+ setup venv dacă nu există,
+ rulează scriptul"
+```
+
+---
+
+## 🔥 TOP 10 CELE MAI FOLOSITE
+
+1. ✅ `"rulează scriptul și arată-mi erorile"`
+2. ✅ `"commit changes cu mesaj descriptiv"`  
+3. ✅ `"instalează dependencies lipsă"`
+4. ✅ `"git status - ce am modificat?"`
+5. ✅ `"profile această funcție pentru speed"`
+6. ✅ `"creează unit tests pentru funcția X"`
+7. ✅ `"formatează tot codul cu black"`
+8. ✅ `"analizează ultima eroare"`
+9. ✅ `"arată dependency tree"`
+10. ✅ `"backup proiect înainte de refactoring"`
+
+---
+
+## 💡 PRO TIPS
+
+✅ Combină comenzi: "rulează, testează, commit dacă merge"
+
+✅ Fii specific: "git commit cu mesajul 'Fixed search bug in line 47'"
+
+✅ Cere explicații: "explică ce face această comandă înainte să o rulezi"
+
+✅ Context matters: "@filename.py rulează funcția X cu Y ca input"
+
+✅ Dry run: "arată-mi ce ai face, dar nu executa încă"
+
+---
+
+Cursor înțelege limbaj natural! Nu trebuie să știi comenzi exacte - descrie ce vrei și el găsește comanda potrivită! 🚀
+
+Vrei exemple concrete pentru proiectul tău de arhivă? 😊
