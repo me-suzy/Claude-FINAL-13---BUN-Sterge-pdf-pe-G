@@ -20,6 +20,55 @@ echo   Data: %date% %time% >> "%LOGFILE%"
 echo ═══════════════════════════════════════════════════════════════════════════ >> "%LOGFILE%"
 echo. >> "%LOGFILE%"
 
+REM ═══════════════════════════════════════════════════════════════════════════
+REM   AUTO-VERIFICARE ȘI REACTIVARE TASK SCHEDULER
+REM ═══════════════════════════════════════════════════════════════════════════
+echo [VERIFICARE] Verific statusul task-ului "PDF Downloader Daily"... >> "%LOGFILE%"
+
+REM Verifică statusul task-ului
+schtasks /Query /TN "PDF Downloader Daily" /FO LIST > "%TEMP%\task_status.txt" 2>&1
+
+REM Caută linia cu Status
+findstr /C:"Status:" "%TEMP%\task_status.txt" > "%TEMP%\task_status_line.txt" 2>&1
+
+REM Verifică dacă task-ul este Disabled
+findstr /C:"Disabled" "%TEMP%\task_status_line.txt" >nul 2>&1
+if %errorlevel% equ 0 (
+    echo [ALERTĂ] Task-ul este DISABLED! Încerc să îl reactivez... >> "%LOGFILE%"
+    
+    REM Încearcă să reactiveze task-ul
+    schtasks /Change /TN "PDF Downloader Daily" /ENABLE >nul 2>&1
+    
+    if %errorlevel% equ 0 (
+        echo [SUCCES] Task-ul a fost REACTIVAT automat! >> "%LOGFILE%"
+    ) else (
+        echo [AVERTISMENT] Nu am putut reactiva task-ul (lipsă permisiuni admin?) >> "%LOGFILE%"
+        echo [INFO] Task-ul va continua să ruleze, dar verifică manual statusul! >> "%LOGFILE%"
+    )
+) else (
+    REM Verifică dacă task-ul este Ready sau Running
+    findstr /C:"Ready" "%TEMP%\task_status_line.txt" >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo [OK] Task-ul este activ și funcțional (Status: Ready) >> "%LOGFILE%"
+    ) else (
+        findstr /C:"Running" "%TEMP%\task_status_line.txt" >nul 2>&1
+        if %errorlevel% equ 0 (
+            echo [OK] Task-ul este activ (Status: Running) >> "%LOGFILE%"
+        ) else (
+            echo [INFO] Task-ul are status necunoscut, continui rularea... >> "%LOGFILE%"
+        )
+    )
+)
+
+REM Curăță fișierele temporare
+del "%TEMP%\task_status.txt" >nul 2>&1
+del "%TEMP%\task_status_line.txt" >nul 2>&1
+
+echo. >> "%LOGFILE%"
+
+REM ═══════════════════════════════════════════════════════════════════════════
+REM   GĂSIRE PYTHON
+REM ═══════════════════════════════════════════════════════════════════════════
 REM Găsește Python (verifică mai multe locații posibile)
 set "PYTHON_EXE="
 

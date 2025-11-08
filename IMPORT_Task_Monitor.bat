@@ -1,83 +1,85 @@
 @echo off
 REM ═══════════════════════════════════════════════════════════════════════════
-REM   SCRIPT pentru importarea automată a task-ului în Windows Task Scheduler
-REM   ATENȚIE: Trebuie rulat ca Administrator!
+REM   IMPORT TASK MONITOR în Task Scheduler
+REM   Acest task verifică zilnic dacă task-ul principal este enabled
 REM ═══════════════════════════════════════════════════════════════════════════
 
 echo.
 echo ═══════════════════════════════════════════════════════════════════════════
-echo   IMPORTARE TASK în WINDOWS TASK SCHEDULER
+echo   IMPORT TASK MONITOR - PDF Downloader Status Check
 echo ═══════════════════════════════════════════════════════════════════════════
 echo.
+echo Acest script va importa task-ul de monitorizare în Task Scheduler.
+echo Task-ul va rula zilnic la 4:00 AM (cu 30 min înaintea task-ului principal)
+echo pentru a verifica dacă task-ul PDF Downloader este enabled.
+echo.
+echo IMPORTANT: Trebuie să rulezi acest script ca ADMINISTRATOR!
+echo.
+pause
 
-REM Verifică dacă scriptul rulează ca Administrator
+REM Verifică dacă rulează cu privilegii de administrator
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo EROARE: Acest script trebuie rulat ca Administrator!
     echo.
-    echo Cum să rulezi ca Administrator:
-    echo   1. Click dreapta pe acest fișier
-    echo   2. Selectează "Run as administrator"
+    echo ❌ EROARE: Acest script trebuie rulat ca ADMINISTRATOR!
+    echo.
+    echo Cum să rulezi ca administrator:
+    echo    1. Click dreapta pe acest fișier
+    echo    2. Selectează "Run as administrator"
     echo.
     pause
     exit /b 1
 )
 
-echo Verificare Administrator... OK
+echo.
+echo ✅ Privilegii de administrator confirmate.
 echo.
 
-REM Verifică dacă fișierul XML există
-if not exist "D:\TEST\PDF_Downloader_Task.xml" (
-    echo EROARE: Fișierul PDF_Downloader_Task.xml nu a fost găsit!
-    echo Locație așteptată: D:\TEST\PDF_Downloader_Task.xml
-    pause
-    exit /b 1
-)
-
-echo Verificare fișier XML... OK
-echo.
-
-REM Șterge task-ul existent dacă există
-echo Verificare task existent...
-schtasks /Query /TN "PDF Downloader Daily" >nul 2>&1
+REM Șterge task-ul vechi dacă există
+echo 🔄 Verific dacă există un task vechi...
+schtasks /Query /TN "PDF Downloader Monitor" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo Task existent găsit - îl șterg...
-    schtasks /Delete /TN "PDF Downloader Daily" /F >nul 2>&1
-    echo Task existent șters.
+    echo 🗑️  Șterg task-ul vechi...
+    schtasks /Delete /TN "PDF Downloader Monitor" /F
 )
-echo.
 
 REM Importă task-ul nou
-echo Importare task nou...
-schtasks /Create /XML "D:\TEST\PDF_Downloader_Task.xml" /TN "PDF Downloader Daily"
+echo.
+echo 📥 Importez task-ul de monitorizare...
+schtasks /Create /XML "D:\TEST\Task_Monitor.xml" /TN "PDF Downloader Monitor"
 
 if %errorlevel% equ 0 (
     echo.
     echo ═══════════════════════════════════════════════════════════════════════════
-    echo   SUCCES! Task-ul a fost importat cu succes!
+    echo   ✅ TASK MONITOR IMPORTAT CU SUCCES!
     echo ═══════════════════════════════════════════════════════════════════════════
     echo.
-    echo DETALII TASK:
-    echo   Nume: PDF Downloader Daily
-    echo   Frecvență: Zilnic la ora 04:30 AM
-    echo   Script: D:\TEST\Claude-FINAL 13 - BUN Sterge pdf pe G.py
-    echo   Log-uri: D:\TEST\Logs\
+    echo 📋 Detalii task:
+    echo    • Nume: PDF Downloader Monitor
+    echo    • Frecvență: Zilnic la 4:00 AM
+    echo    • Scop: Verifică și reactivează automat task-ul principal
+    echo    • Log: D:\TEST\Logs\Task_Status_Check.log
     echo.
-    echo ACȚIUNI DISPONIBILE:
-    echo   - Pentru a vedea task-ul: taskschd.msc
-    echo   - Pentru a rula manual: schtasks /Run /TN "PDF Downloader Daily"
-    echo   - Pentru a dezactiva: schtasks /Change /TN "PDF Downloader Daily" /Disable
-    echo   - Pentru a șterge: schtasks /Delete /TN "PDF Downloader Daily" /F
+    echo 🔍 Pentru a verifica task-ul în Task Scheduler:
+    echo    1. Deschide Task Scheduler (taskschd.msc)
+    echo    2. Caută "PDF Downloader Monitor" în lista de task-uri
+    echo.
+    echo 🧪 Pentru a testa task-ul acum:
+    echo    schtasks /Run /TN "PDF Downloader Monitor"
     echo.
 ) else (
     echo.
     echo ═══════════════════════════════════════════════════════════════════════════
-    echo   EROARE! Task-ul nu a putut fi importat.
+    echo   ❌ EROARE LA IMPORTAREA TASK-ULUI!
     echo ═══════════════════════════════════════════════════════════════════════════
     echo.
-    echo Cod eroare: %errorlevel%
+    echo Verifică următoarele:
+    echo    1. Fișierul Task_Monitor.xml există în D:\TEST\
+    echo    2. Ai rulat acest script ca ADMINISTRATOR
+    echo    3. Task Scheduler service este activ
     echo.
 )
 
+echo.
 pause
 

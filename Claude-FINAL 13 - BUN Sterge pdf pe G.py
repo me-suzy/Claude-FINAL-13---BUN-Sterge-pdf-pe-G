@@ -451,6 +451,86 @@ class ChromePDFDownloader:
 
         return max_page
 
+    def calculate_expected_segments(self, total_pages):
+        """
+        NOUĂ FUNCȚIE: Calculează toate segmentele așteptate bazat pe total_pages
+        Returns: List of tuples (start_page, end_page)
+        """
+        if not total_pages or total_pages <= 0:
+            return []
+        
+        bs = self.batch_size  # 50
+        expected_segments = []
+        
+        # Primul segment: 1 până la (bs-1), adică 1-49
+        first_end = min(bs - 1, total_pages)
+        if first_end >= 1:
+            expected_segments.append((1, first_end))
+        
+        # Segmentele următoare: bs până la final
+        current_start = bs
+        while current_start < total_pages:
+            current_end = min(current_start + bs - 1, total_pages)
+            expected_segments.append((current_start, current_end))
+            current_start += bs
+        
+        return expected_segments
+
+    def verify_physical_segments(self, issue_url, total_pages):
+        """
+        NOUĂ FUNCȚIE CRITICĂ: Verifică că TOATE segmentele fizice există pe disk
+        Returns: (is_complete, missing_segments, existing_segments)
+        """
+        if not total_pages or total_pages <= 0:
+            return False, [], []
+        
+        # Calculează segmentele așteptate
+        expected_segments = self.calculate_expected_segments(total_pages)
+        
+        # Obține segmentele existente pe disk
+        existing_segments = self.get_all_pdf_segments_for_issue(issue_url)
+        
+        # Creează set-uri pentru comparație
+        expected_set = set(expected_segments)
+        existing_set = set((seg['start'], seg['end']) for seg in existing_segments)
+        
+        # Identifică segmentele lipsă
+        missing_set = expected_set - existing_set
+        missing_segments = sorted(list(missing_set))
+        
+        is_complete = len(missing_segments) == 0
+        
+        return is_complete, missing_segments, existing_segments
+
+    def verify_and_report_missing_segments(self, issue_url, total_pages, item=None):
+        """
+        NOUĂ FUNCȚIE: Verifică completitudinea și raportează segmentele lipsă
+        Returns: True dacă colecția este completă, False dacă lipsesc segmente
+        """
+        is_complete, missing_segments, existing_segments = self.verify_physical_segments(issue_url, total_pages)
+        
+        if is_complete:
+            print(f"✅ VERIFICARE FIZICĂ: Toate {len(existing_segments)} segmente există pe disk")
+            return True
+        else:
+            print(f"❌ VERIFICARE FIZICĂ: LIPSESC {len(missing_segments)} SEGMENTE!")
+            print(f"   📊 Existente: {len(existing_segments)} segmente")
+            print(f"   📊 Așteptate: {len(missing_segments) + len(existing_segments)} segmente")
+            print(f"   🔍 Segmente LIPSĂ:")
+            for start, end in missing_segments:
+                print(f"      ❌ pages{start}-{end}.pdf")
+            
+            # Dacă avem item din state.json, marchează-l ca incomplet
+            if item:
+                if item.get("completed_at"):
+                    print(f"   🔧 CORECTEZ: Șterg completed_at pentru a relua descărcarea")
+                    item["completed_at"] = ""
+                if item.get("pages") == total_pages:
+                    print(f"   🔧 CORECTEZ: Resetez pages la 0 pentru reluare")
+                    item["pages"] = 0
+            
+            return False
+
     def reconstruct_all_issues_from_disk(self):
         """FIXED: Reconstruiește complet progresul din fișierele de pe disk"""
         print("🔍 SCANEZ COMPLET toate fișierele PDF de pe disk...")
@@ -707,6 +787,25 @@ class ChromePDFDownloader:
                 print(f"🔄 PROCESEZ: {url}")
                 print(f"{'='*60}")
 
+                # VERIFICARE CRITICĂ: Verifică că TOATE segmentele fizice există pe disk
+                print(f"🔍 VERIFICARE FIZICĂ: Verific că toate segmentele există pe disk...")
+                is_physically_complete = self.verify_and_report_missing_segments(url, total_pages)
+                
+                if not is_physically_complete:
+                    print(f"⚠ SKIP: Colecția NU este completă pe disk - lipsesc segmente!")
+                    print(f"   🔄 Issue-ul va fi reluat pentru a descărca segmentele lipsă")
+                    
+                    # Găsește issue-ul în state și marchează-l ca incomplet
+                    for state_issue in self.state.get("downloaded_issues", []):
+                        if state_issue.get("url") == url:
+                            state_issue["completed_at"] = ""
+                            state_issue["pages"] = 0
+                            state_issue["last_successful_segment_end"] = 0
+                            self._save_state_safe()
+                            print(f"   ✅ Issue resetat în state.json pentru reluare")
+                            break
+                    continue
+                
                 # Verifică din nou pe disk că toate fișierele sunt prezente
                 final_segments = self.get_all_pdf_segments_for_issue(url)
 
@@ -815,27 +914,52 @@ class ChromePDFDownloader:
         else:
             print("✅ Nu am găsit dubluri în state.json")
 
-    def is_issue_really_complete(self, item):
-            """HELPER: Verifică dacă un issue este REAL complet (nu doar marcat ca atare)"""
+    def is_issue_really_complete(self, item, verify_physical=True):
+            """
+            HELPER: Verifică dacă un issue este REAL complet (nu doar marcat ca atare)
+            UPDATED: Adaugă verificare FIZICĂ a segmentelor pe disk (CAZUL 3)
+            """
             completed_at = item.get("completed_at")
             last_segment = item.get("last_successful_segment_end", 0)
             total_pages = item.get("total_pages")
             pages = item.get("pages", 0)
+            url = item.get("url", "")
 
-            # Un issue este REAL complet dacă:
+            # VERIFICARE 1: State.json verificare standard
+            # Un issue este marcat complet în state.json dacă:
             # 1. Are completed_at setat ȘI
             # 2. Are progresul complet (last_segment >= total_pages) ȘI
             # 3. Are pages > 0 (nu e marcat greșit)
-            return (
+            json_complete = (
                 completed_at and
                 total_pages and
                 total_pages > 0 and
                 last_segment >= total_pages and
                 pages > 0
             )
+            
+            # Dacă în state.json nu e marcat complet, nu e complet
+            if not json_complete:
+                return False
+            
+            # VERIFICARE 2 (CRITICĂ): Verificare FIZICĂ a segmentelor pe disk
+            # CAZUL 3 menționat de user: state.json zice complet, dar lipsesc segmente!
+            if verify_physical and total_pages and total_pages > 0:
+                is_physically_complete, missing_segments, _ = self.verify_physical_segments(url, total_pages)
+                
+                if not is_physically_complete:
+                    print(f"⚠️ ATENȚIE: {url}")
+                    print(f"   ✅ În state.json: marcat COMPLET")
+                    print(f"   ❌ Pe disk: LIPSESC {len(missing_segments)} segmente!")
+                    return False
+            
+            return True
 
     def fix_incorrectly_marked_complete_issues(self):
-            """NOUĂ FUNCȚIE: Corectează issue-urile marcate greșit ca complete"""
+            """
+            NOUĂ FUNCȚIE: Corectează issue-urile marcate greșit ca complete
+            UPDATED: Adaugă verificare FIZICĂ a segmentelor (CAZUL 3)
+            """
             print("🔧 CORECTEZ issue-urile marcate GREȘIT ca complete...")
 
             fixes_applied = 0
@@ -847,7 +971,8 @@ class ChromePDFDownloader:
                 pages = item.get("pages", 0)
                 url = item.get("url", "")
 
-                # Detectează issue-uri marcate greșit ca complete
+                # CAZUL 1 & 2: Verificare state.json standard
+                # Detectează issue-uri marcate greșit ca complete în state.json
                 if (completed_at and
                     pages == 0 and
                     total_pages and
@@ -863,6 +988,27 @@ class ChromePDFDownloader:
 
                     fixes_applied += 1
                     print(f"   După: completed_at='', pages=0 (va fi reluat)")
+                    continue
+                
+                # CAZUL 3 (NOU): Verificare FIZICĂ - state.json zice complet, dar lipsesc segmente
+                if (completed_at and
+                    total_pages and
+                    total_pages > 0 and
+                    pages > 0):
+                    
+                    # Verifică dacă toate segmentele există fizic pe disk
+                    is_physically_complete = self.verify_and_report_missing_segments(url, total_pages, item)
+                    
+                    if not is_physically_complete:
+                        print(f"🚨 CORECTEZ issue marcat complet în JSON dar INCOMPLET pe disk: {url}")
+                        print(f"   Înainte: completed_at={completed_at}, pages={pages}/{total_pages}")
+                        
+                        # Marchează ca incomplet pentru reluare
+                        item["completed_at"] = ""
+                        item["pages"] = 0
+                        
+                        fixes_applied += 1
+                        print(f"   După: completed_at='', pages=0 (va fi reluat și se vor descărca segmentele lipsă)")
 
             if fixes_applied > 0:
                 print(f"🔧 CORECTAT {fixes_applied} issue-uri marcate greșit ca complete")
