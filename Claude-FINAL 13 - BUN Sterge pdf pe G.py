@@ -26,6 +26,7 @@ import sys
 import re
 import json
 import shutil
+import subprocess
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -78,11 +79,11 @@ ADDITIONAL_COLLECTIONS = [
     # "https://adt.arcanum.com/ro/collection/RevistaConstructilorMaterialelorDeConstructii/",
     # "https://adt.arcanum.com/ro/collection/ConstructiaDeMasini/",
     # "https://adt.arcanum.com/en/collection/ByteRomania/",
-    "https://adt.arcanum.com/ro/collection/RevueRoumaineDeChimie/",
+    # "https://adt.arcanum.com/ro/collection/RevueRoumaineDeChimie/",
     # "https://adt.arcanum.com/ro/collection/Almanahul_StiintaSiTehnica/",
     # "https://adt.arcanum.com/ro/collection/StudiiSiCercetariDeEnergetica/",
     # "https://adt.arcanum.com/ro/collection/Telecomunicatii/",
-    "https://adt.arcanum.com/ro/collection/PcReport/",
+    # "https://adt.arcanum.com/ro/collection/PcReport/",
     "https://adt.arcanum.com/ro/collection/StiintaSiTehnica/",
     "https://adt.arcanum.com/ro/collection/CulturaFizicaSiSport/",
     "https://adt.arcanum.com/ro/collection/UniversulSport/",
@@ -458,22 +459,22 @@ class ChromePDFDownloader:
         """
         if not total_pages or total_pages <= 0:
             return []
-        
+
         bs = self.batch_size  # 50
         expected_segments = []
-        
+
         # Primul segment: 1 până la (bs-1), adică 1-49
         first_end = min(bs - 1, total_pages)
         if first_end >= 1:
             expected_segments.append((1, first_end))
-        
+
         # Segmentele următoare: bs până la final
         current_start = bs
         while current_start < total_pages:
             current_end = min(current_start + bs - 1, total_pages)
             expected_segments.append((current_start, current_end))
             current_start += bs
-        
+
         return expected_segments
 
     def verify_physical_segments(self, issue_url, total_pages):
@@ -483,23 +484,23 @@ class ChromePDFDownloader:
         """
         if not total_pages or total_pages <= 0:
             return False, [], []
-        
+
         # Calculează segmentele așteptate
         expected_segments = self.calculate_expected_segments(total_pages)
-        
+
         # Obține segmentele existente pe disk
         existing_segments = self.get_all_pdf_segments_for_issue(issue_url)
-        
+
         # Creează set-uri pentru comparație
         expected_set = set(expected_segments)
         existing_set = set((seg['start'], seg['end']) for seg in existing_segments)
-        
+
         # Identifică segmentele lipsă
         missing_set = expected_set - existing_set
         missing_segments = sorted(list(missing_set))
-        
+
         is_complete = len(missing_segments) == 0
-        
+
         return is_complete, missing_segments, existing_segments
 
     def verify_and_report_missing_segments(self, issue_url, total_pages, item=None):
@@ -508,7 +509,7 @@ class ChromePDFDownloader:
         Returns: True dacă colecția este completă, False dacă lipsesc segmente
         """
         is_complete, missing_segments, existing_segments = self.verify_physical_segments(issue_url, total_pages)
-        
+
         if is_complete:
             print(f"✅ VERIFICARE FIZICĂ: Toate {len(existing_segments)} segmente există pe disk")
             return True
@@ -519,7 +520,7 @@ class ChromePDFDownloader:
             print(f"   🔍 Segmente LIPSĂ:")
             for start, end in missing_segments:
                 print(f"      ❌ pages{start}-{end}.pdf")
-            
+
             # Dacă avem item din state.json, marchează-l ca incomplet
             if item:
                 if item.get("completed_at"):
@@ -528,7 +529,7 @@ class ChromePDFDownloader:
                 if item.get("pages") == total_pages:
                     print(f"   🔧 CORECTEZ: Resetez pages la 0 pentru reluare")
                     item["pages"] = 0
-            
+
             return False
 
     def reconstruct_all_issues_from_disk(self):
@@ -790,11 +791,11 @@ class ChromePDFDownloader:
                 # VERIFICARE CRITICĂ: Verifică că TOATE segmentele fizice există pe disk
                 print(f"🔍 VERIFICARE FIZICĂ: Verific că toate segmentele există pe disk...")
                 is_physically_complete = self.verify_and_report_missing_segments(url, total_pages)
-                
+
                 if not is_physically_complete:
                     print(f"⚠ SKIP: Colecția NU este completă pe disk - lipsesc segmente!")
                     print(f"   🔄 Issue-ul va fi reluat pentru a descărca segmentele lipsă")
-                    
+
                     # Găsește issue-ul în state și marchează-l ca incomplet
                     for state_issue in self.state.get("downloaded_issues", []):
                         if state_issue.get("url") == url:
@@ -805,7 +806,7 @@ class ChromePDFDownloader:
                             print(f"   ✅ Issue resetat în state.json pentru reluare")
                             break
                     continue
-                
+
                 # Verifică din nou pe disk că toate fișierele sunt prezente
                 final_segments = self.get_all_pdf_segments_for_issue(url)
 
@@ -915,117 +916,148 @@ class ChromePDFDownloader:
             print("✅ Nu am găsit dubluri în state.json")
 
     def is_issue_really_complete(self, item, verify_physical=True):
-            """
-            HELPER: Verifică dacă un issue este REAL complet (nu doar marcat ca atare)
-            UPDATED: Adaugă verificare FIZICĂ a segmentelor pe disk (CAZUL 3)
-            """
+        """
+        FIXED: Nu verifica fizic issue-urile deja procesate complet
+        """
+        completed_at = item.get("completed_at")
+        last_segment = item.get("last_successful_segment_end", 0)
+        total_pages = item.get("total_pages")
+        pages = item.get("pages", 0)
+        url = item.get("url", "")
+
+        # VERIFICARE 1: State.json verificare standard
+        json_complete = (
+            completed_at and
+            total_pages and
+            total_pages > 0 and
+            last_segment >= total_pages and
+            pages > 0
+        )
+
+        if not json_complete:
+            return False
+
+        # ✅ FIX CRUCIAL: Dacă pages == total_pages, issue-ul e PROCESAT!
+        # PDF-ul final există, segmentele au fost șterse
+        # NU mai verificăm fizic pe disk!
+        if pages == total_pages:
+            return True
+
+        # VERIFICARE 2: Verificare FIZICĂ - DOAR pentru issues parțiale
+        if verify_physical and total_pages and total_pages > 0:
+            is_physically_complete, missing_segments, _ = self.verify_physical_segments(url, total_pages)
+
+            if not is_physically_complete:
+                print(f"⚠️ ATENȚIE: {url}")
+                print(f"   ✅ În state.json: marcat COMPLET")
+                print(f"   ❌ Pe disk: LIPSESC {len(missing_segments)} segmente!")
+                return False
+
+        return True
+
+    def fix_incorrectly_marked_complete_issues(self):
+        """
+        FIXED: Nu resetează issue-urile deja procesate complet
+        """
+        print("🔧 CORECTEZ issue-urile marcate GREȘIT ca complete...")
+
+        # ⚡ VERIFICARE PRIORITATE: Există issues incomplete de procesat?
+        incomplete_issues_exist = False
+        for item in self.state.get("downloaded_issues", []):
+            if (item.get("pages", 0) == 0 and
+                not item.get("completed_at") and
+                item.get("total_pages", 0) > 0):
+                incomplete_issues_exist = True
+                break
+
+        if incomplete_issues_exist:
+            print("⚡ PRIORITATE: Există issues incomplete de procesat")
+            print("   ⏭️ SKIP verificarea fizică a issues complete (CAZUL 3)")
+            print("   ✅ Focusez pe finalizarea issues incomplete mai întâi!")
+
+        fixes_applied = 0
+
+        for item in self.state.get("downloaded_issues", []):
             completed_at = item.get("completed_at")
             last_segment = item.get("last_successful_segment_end", 0)
             total_pages = item.get("total_pages")
             pages = item.get("pages", 0)
             url = item.get("url", "")
 
-            # VERIFICARE 1: State.json verificare standard
-            # Un issue este marcat complet în state.json dacă:
-            # 1. Are completed_at setat ȘI
-            # 2. Are progresul complet (last_segment >= total_pages) ȘI
-            # 3. Are pages > 0 (nu e marcat greșit)
-            json_complete = (
-                completed_at and
+            # ✅ FIX CRUCIAL: SKIP issue-uri PROCESATE complet
+            # Dacă pages == total_pages, PDF-ul final există, segmentele au fost șterse
+            if completed_at and pages > 0 and total_pages and pages == total_pages:
+                # Issue PROCESAT complet - NU verificăm fizic!
+                continue
+
+            # CAZUL 1 & 2: Verificare state.json standard
+            if (completed_at and
+                pages == 0 and
+                total_pages and
+                last_segment < total_pages):
+
+                print(f"🚨 CORECTEZ issue marcat GREȘIT ca complet: {url}")
+                item["completed_at"] = ""
+                item["pages"] = 0
+                fixes_applied += 1
+                continue
+
+            # CAZUL 3: Verificare FIZICĂ - DOAR pentru issues NEPROCESSATE
+            # (completed_at există dar pages == 0 sau pages < total_pages)
+            if (completed_at and
                 total_pages and
                 total_pages > 0 and
-                last_segment >= total_pages and
-                pages > 0
-            )
-            
-            # Dacă în state.json nu e marcat complet, nu e complet
-            if not json_complete:
-                return False
-            
-            # VERIFICARE 2 (CRITICĂ): Verificare FIZICĂ a segmentelor pe disk
-            # CAZUL 3 menționat de user: state.json zice complet, dar lipsesc segmente!
-            if verify_physical and total_pages and total_pages > 0:
-                is_physically_complete, missing_segments, _ = self.verify_physical_segments(url, total_pages)
-                
+                pages < total_pages and  # ✅ NU verifică dacă pages == total_pages
+                not incomplete_issues_exist):
+
+                is_physically_complete = self.verify_and_report_missing_segments(url, total_pages, item)
+
                 if not is_physically_complete:
-                    print(f"⚠️ ATENȚIE: {url}")
-                    print(f"   ✅ În state.json: marcat COMPLET")
-                    print(f"   ❌ Pe disk: LIPSESC {len(missing_segments)} segmente!")
-                    return False
-            
-            return True
-
-    def fix_incorrectly_marked_complete_issues(self):
-            """
-            NOUĂ FUNCȚIE: Corectează issue-urile marcate greșit ca complete
-            UPDATED: Adaugă verificare FIZICĂ a segmentelor (CAZUL 3)
-            """
-            print("🔧 CORECTEZ issue-urile marcate GREȘIT ca complete...")
-
-            fixes_applied = 0
-
-            for item in self.state.get("downloaded_issues", []):
-                completed_at = item.get("completed_at")
-                last_segment = item.get("last_successful_segment_end", 0)
-                total_pages = item.get("total_pages")
-                pages = item.get("pages", 0)
-                url = item.get("url", "")
-
-                # CAZUL 1 & 2: Verificare state.json standard
-                # Detectează issue-uri marcate greșit ca complete în state.json
-                if (completed_at and
-                    pages == 0 and
-                    total_pages and
-                    last_segment < total_pages):
-
-                    print(f"🚨 CORECTEZ issue marcat GREȘIT ca complet: {url}")
-                    print(f"   Înainte: completed_at={completed_at}, pages={pages}")
-                    print(f"   Progres real: {last_segment}/{total_pages}")
-
-                    # Șterge completed_at pentru a-l face parțial din nou
+                    print(f"🚨 CORECTEZ issue marcat complet în JSON dar INCOMPLET pe disk: {url}")
                     item["completed_at"] = ""
-                    item["pages"] = 0  # Asigură-te că pages rămâne 0
-
+                    item["pages"] = 0
                     fixes_applied += 1
-                    print(f"   După: completed_at='', pages=0 (va fi reluat)")
-                    continue
-                
-                # CAZUL 3 (NOU): Verificare FIZICĂ - state.json zice complet, dar lipsesc segmente
-                if (completed_at and
-                    total_pages and
-                    total_pages > 0 and
-                    pages > 0):
-                    
-                    # Verifică dacă toate segmentele există fizic pe disk
-                    is_physically_complete = self.verify_and_report_missing_segments(url, total_pages, item)
-                    
-                    if not is_physically_complete:
-                        print(f"🚨 CORECTEZ issue marcat complet în JSON dar INCOMPLET pe disk: {url}")
-                        print(f"   Înainte: completed_at={completed_at}, pages={pages}/{total_pages}")
-                        
-                        # Marchează ca incomplet pentru reluare
-                        item["completed_at"] = ""
-                        item["pages"] = 0
-                        
-                        fixes_applied += 1
-                        print(f"   După: completed_at='', pages=0 (va fi reluat și se vor descărca segmentele lipsă)")
 
-            if fixes_applied > 0:
-                print(f"🔧 CORECTAT {fixes_applied} issue-uri marcate greșit ca complete")
-                self._save_state_safe()
+        if fixes_applied > 0:
+            print(f"🔧 CORECTAT {fixes_applied} issue-uri marcate greșit ca complete")
+            self._save_state_safe()
+            self._save_skip_urls()
+        else:
+            print("✅ Nu am găsit issue-uri marcate greșit ca complete")
 
-                # Actualizează și skip URLs
-                self._save_skip_urls()
-            else:
-                print("✅ Nu am găsit issue-uri marcate greșit ca complete")
-
-            return fixes_applied
+        return fixes_applied
 
     def fix_progress_based_on_disk(self):
-        """NOUĂ FUNCȚIE: Corectează last_successful_segment_end bazat pe ce există EFECTIV pe disk"""
+        """NOUĂ FUNCȚIE: Corectează last_successful_segment_end bazat pe ce există EFECTIV pe disk
+           PROTECTED: Protecție împotriva resetărilor masive dacă disk-ul e gol
+        """
         print("🔍 SCANEZ disk-ul și corectez progresul în JSON...")
 
+        # 🛡️ PROTECȚIE: Verifică dacă disk-ul are CEVA fișiere PDF
+        # Dacă disk-ul e complet gol sau aproape gol, NU reseta nimic!
+        try:
+            pdf_files_on_disk = [f for f in os.listdir(self.download_dir) if f.lower().endswith('.pdf')]
+            pdf_count = len(pdf_files_on_disk)
+
+            if pdf_count < 10:
+                print(f"\n{'='*70}")
+                print(f"🚨 ATENȚIE: PROTECȚIE DISK GOL ACTIVATĂ!")
+                print(f"{'='*70}")
+                print(f"⚠️  Disk-ul are doar {pdf_count} fișiere PDF.")
+                print(f"   Acesta pare a fi prea puțin comparativ cu issues din state.json.")
+                print(f"   POATE fișierele au fost mutate/șterse temporar?")
+                print(f"\n🛡️  PROTECȚIE: NU voi reseta progresul pentru a preveni pierderea datelor!")
+                print(f"   Verifică dacă fișierele PDF există pe disk și încearcă din nou.")
+                print(f"{'='*70}\n")
+                return  # NU continua!
+
+        except Exception as e:
+            print(f"⚠️  Nu am putut verifica disk-ul: {e}")
+            print(f"   Pentru siguranță, NU voi modifica progresul.")
+            return
+
         corrections = 0
+        resets_to_zero = 0  # Contorizează câte issues vor fi resetate la 0
 
         for item in self.state.get("downloaded_issues", []):
             url = item.get("url", "")
@@ -1140,9 +1172,25 @@ class ChromePDFDownloader:
                 item["pages"] = 0
 
                 corrections += 1
+                resets_to_zero += 1
+
+        # 🛡️ PROTECȚIE FINALĂ: Nu permite resetări masive
+        if resets_to_zero > 20:
+            print(f"\n{'='*70}")
+            print(f"🚨 ALERTĂ CRITICĂ: PROTECȚIE RESETĂRI MASIVE ACTIVATĂ!")
+            print(f"{'='*70}")
+            print(f"❌ Funcția fix_progress_based_on_disk() vrea să reseteze {resets_to_zero} issues la 0!")
+            print(f"   Acesta pare a fi un număr suspect de mare.")
+            print(f"   POATE fișierele PDF au fost mutate temporar sau disk-ul e inaccesibil?")
+            print(f"\n🛡️  PROTECȚIE: NU voi salva aceste modificări pentru a preveni pierderea datelor!")
+            print(f"   Verifică că fișierele PDF există pe disk și încearcă din nou.")
+            print(f"{'='*70}\n")
+            return  # NU salva!
 
         if corrections > 0:
             print(f"\n✅ CORECTAT progresul pentru {corrections} issues")
+            if resets_to_zero > 0:
+                print(f"   ⚠️  Dintre care {resets_to_zero} au fost resetate la 0 (disk gol)")
             self._save_state_safe()
             self._save_skip_urls()
         else:
@@ -1403,14 +1451,178 @@ class ChromePDFDownloader:
         except Exception as e:
             print(f"⚠ Nu am putut scrie în log zilnic: {e}")
 
-    def _save_state_safe(self):
-        """SAFE: Salvează starea (backup zilnic se face separat la început)"""
+    def _log_state_changes(self, old_state, new_state, caller_function="Unknown"):
+        """Loghează modificările făcute în state.json pentru debugging"""
         try:
+            log_dir = os.path.join(os.path.dirname(self.state_path), "State_Change_Logs")
+            os.makedirs(log_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file = os.path.join(log_dir, f"state_changes_{timestamp}.log")
+
+            with open(log_file, "w", encoding="utf-8") as f:
+                f.write(f"{'='*70}\n")
+                f.write(f"STATE.JSON CHANGE LOG\n")
+                f.write(f"{'='*70}\n")
+                f.write(f"Timestamp: {datetime.now().isoformat()}\n")
+                f.write(f"Called by: {caller_function}\n")
+                f.write(f"{'='*70}\n\n")
+
+                # Compară numărul total de issues
+                old_count = len(old_state.get("downloaded_issues", []))
+                new_count = len(new_state.get("downloaded_issues", []))
+                f.write(f"Total issues: {old_count} → {new_count}\n\n")
+
+                # Detectează modificări masive suspecte (ALERTĂ!)
+                pages_reset_count = 0
+                completed_at_reset_count = 0
+
+                old_issues = {item.get("url"): item for item in old_state.get("downloaded_issues", [])}
+                new_issues = {item.get("url"): item for item in new_state.get("downloaded_issues", [])}
+
+                for url, old_item in old_issues.items():
+                    if url in new_issues:
+                        new_item = new_issues[url]
+                        old_pages = old_item.get("pages", 0)
+                        new_pages = new_item.get("pages", 0)
+                        old_completed = old_item.get("completed_at", "")
+                        new_completed = new_item.get("completed_at", "")
+
+                        # Detectează resetări
+                        if old_pages > 0 and new_pages == 0:
+                            pages_reset_count += 1
+                        if old_completed and not new_completed:
+                            completed_at_reset_count += 1
+
+                # ALERTĂ MODIFICĂRI MASIVE
+                if pages_reset_count > 10 or completed_at_reset_count > 10:
+                    f.write(f"🚨 ALERTĂ: MODIFICARE MASIVĂ DETECTATĂ!\n")
+                    f.write(f"   - Issues cu pages resetat la 0: {pages_reset_count}\n")
+                    f.write(f"   - Issues cu completed_at șters: {completed_at_reset_count}\n")
+                    f.write(f"   - Funcție responsabilă: {caller_function}\n")
+                    f.write(f"{'='*70}\n\n")
+
+                # Înregistrează modificările detaliate
+                f.write(f"MODIFICĂRI DETECTATE:\n")
+                f.write(f"{'='*70}\n\n")
+
+                changes_found = False
+                for url, old_item in old_issues.items():
+                    if url in new_issues:
+                        new_item = new_issues[url]
+                        changes = []
+
+                        # Verifică fiecare câmp important
+                        for key in ["pages", "completed_at", "last_successful_segment_end", "total_pages"]:
+                            old_val = old_item.get(key)
+                            new_val = new_item.get(key)
+                            if old_val != new_val:
+                                changes.append(f"  {key}: {old_val} → {new_val}")
+
+                        if changes:
+                            changes_found = True
+                            f.write(f"URL: {url}\n")
+                            f.write(f"  Title: {old_item.get('title', 'N/A')}\n")
+                            for change in changes:
+                                f.write(f"{change}\n")
+                            f.write(f"\n")
+
+                if not changes_found:
+                    f.write("Nu s-au detectat modificări în issues existente.\n")
+
+                # Înregistrează issues noi
+                new_urls = set(new_issues.keys()) - set(old_issues.keys())
+                if new_urls:
+                    f.write(f"\n{'='*70}\n")
+                    f.write(f"ISSUES NOI ADĂUGATE: {len(new_urls)}\n")
+                    f.write(f"{'='*70}\n\n")
+                    for url in new_urls:
+                        item = new_issues[url]
+                        f.write(f"URL: {url}\n")
+                        f.write(f"  Title: {item.get('title', 'N/A')}\n")
+                        f.write(f"  Pages: {item.get('pages', 0)}\n")
+                        f.write(f"  Progress: {item.get('last_successful_segment_end', 0)}/{item.get('total_pages', 0)}\n\n")
+
+            # Păstrează doar ultimele 50 de log-uri
+            log_files = sorted(os.listdir(log_dir))
+            if len(log_files) > 50:
+                for old_log in log_files[:-50]:
+                    os.remove(os.path.join(log_dir, old_log))
+
+        except Exception as e:
+            print(f"⚠ Nu am putut crea log pentru modificări: {e}")
+
+    def _save_state_safe(self):
+        """SAFE: Salvează starea cu backup timestamped și logging detaliat"""
+        try:
+            # PASUL 1: Citește starea VECHE pentru comparație
+            old_state = {}
+            if os.path.exists(self.state_path):
+                try:
+                    with open(self.state_path, "r", encoding="utf-8") as f:
+                        old_state = json.load(f)
+                except:
+                    old_state = {}
+
+            # PASUL 2: PROTECȚIE ÎMPOTRIVA RESETĂRILOR MASIVE
+            # Verifică dacă se încearcă resetarea masivă a pages la 0
+            if old_state.get("downloaded_issues"):
+                old_completed_count = sum(1 for item in old_state.get("downloaded_issues", [])
+                                         if item.get("pages", 0) > 0 and item.get("completed_at"))
+                new_completed_count = sum(1 for item in self.state.get("downloaded_issues", [])
+                                         if item.get("pages", 0) > 0 and item.get("completed_at"))
+
+                # Dacă se pierd mai mult de 10 issues complete, STOP!
+                if old_completed_count - new_completed_count > 10:
+                    print(f"\n{'='*70}")
+                    print(f"🚨 ALERTĂ CRITICĂ: PROTECȚIE ANTI-CORUPȚIE ACTIVATĂ!")
+                    print(f"{'='*70}")
+                    print(f"❌ Încercare de resetare masivă detectată:")
+                    print(f"   Issues complete ÎNAINTE: {old_completed_count}")
+                    print(f"   Issues complete DUPĂ: {new_completed_count}")
+                    print(f"   Issues PIERDUTE: {old_completed_count - new_completed_count}")
+                    print(f"\n⚠️  SALVAREA A FOST BLOCATĂ pentru a preveni corupția datelor!")
+                    print(f"   State.json NU a fost modificat.")
+                    print(f"{'='*70}\n")
+                    return  # NU salva!
+
+            # PASUL 3: Creează backup timestamped ÎNAINTE de salvare
+            backup_dir = os.path.join(os.path.dirname(self.state_path), "State_Backups")
+            os.makedirs(backup_dir, exist_ok=True)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = os.path.join(backup_dir, f"state_{timestamp}.json")
+
+            if os.path.exists(self.state_path):
+                shutil.copy2(self.state_path, backup_path)
+
+            # Păstrează doar ultimele 100 de backup-uri
+            backup_files = sorted(os.listdir(backup_dir))
+            if len(backup_files) > 100:
+                for old_backup in backup_files[:-100]:
+                    os.remove(os.path.join(backup_dir, old_backup))
+
+            # PASUL 4: Loghează modificările (cu stack trace pentru debugging)
+            import inspect
+            caller_function = "Unknown"
+            try:
+                stack = inspect.stack()
+                if len(stack) > 2:
+                    caller_function = f"{stack[2].function} (line {stack[2].lineno})"
+            except:
+                pass
+
+            self._log_state_changes(old_state, self.state, caller_function)
+
+            # PASUL 5: Salvează starea nouă
             with open(self.state_path, "w", encoding="utf-8") as f:
                 json.dump(self.state, f, indent=2, ensure_ascii=False)
 
         except Exception as e:
             print(f"⚠ Nu am putut salva state-ul: {e}")
+            import traceback
+            traceback.print_exc()
+
             # Încearcă să restabilească din backup zilnic
             backup_path = self.state_path + ".backup"
             if os.path.exists(backup_path):
@@ -1716,6 +1928,9 @@ class ChromePDFDownloader:
             print(f"⚠ Eroare la marcarea colecției complete: {e}")
 
     def setup_chrome_driver(self):
+        # Calea către scriptul batch care pornește Chrome în debug mode
+        CHROME_DEBUG_SCRIPT = r"e:\Carte\BB\17 - Site Leadership\alte\Ionel Balauta\Aryeht\Task 1 - Traduce tot site-ul\Doar Google Web\Andreea\Meditatii\2023\++Arcanum Download + Chrome\Ruleaza cand sunt plecat 3\start_chrome_debug.bat"
+
         try:
             print("🔧 Inițializare WebDriver – încerc conectare la instanța Chrome existentă via remote debugging...")
             chrome_options = Options()
@@ -1734,19 +1949,60 @@ class ChromePDFDownloader:
                 print("✅ Conectat la instanța Chrome existentă cu succes.")
                 return True
             except WebDriverException as e:
-                print(f"⚠ Conexiune la Chrome existent eșuat ({e}); pornesc o instanță nouă.")
-                chrome_options = Options()
-                chrome_options.add_experimental_option("prefs", prefs)
-                chrome_options.add_argument("--no-sandbox")
-                chrome_options.add_argument("--disable-dev-shm-usage")
-                chrome_options.add_argument("--disable-gpu")
-                chrome_options.add_argument("--window-size=1920,1080")
-                chrome_options.add_argument("--incognito")
-                self.driver = webdriver.Chrome(options=chrome_options)
-                self.wait = WebDriverWait(self.driver, self.timeout)
-                self.attached_existing = False
-                print("✅ Chrome nou pornit cu succes.")
-                return True
+                print(f"⚠ Conexiune la Chrome existent eșuat: {e}")
+                print(f"🔄 Încerc să pornesc Chrome prin scriptul debug...")
+
+                # Verifică dacă scriptul batch există
+                if not os.path.exists(CHROME_DEBUG_SCRIPT):
+                    print(f"❌ EROARE: Scriptul Chrome debug nu există: {CHROME_DEBUG_SCRIPT}")
+                    print(f"⚠️  Chrome trebuie pornit MANUAL prin scriptul debug!")
+                    print(f"⏳ Așteaptă 30 secunde pentru pornire manuală...")
+                    time.sleep(30)
+
+                    # Reîncearcă conectarea
+                    try:
+                        self.driver = webdriver.Chrome(options=chrome_options)
+                        self.wait = WebDriverWait(self.driver, self.timeout)
+                        self.attached_existing = True
+                        print("✅ Conectat la Chrome după așteptare.")
+                        return True
+                    except:
+                        print("❌ Încă nu pot conecta la Chrome - opresc scriptul")
+                        return False
+
+                # Pornește scriptul batch
+                try:
+                    print(f"🚀 Pornesc Chrome prin: {CHROME_DEBUG_SCRIPT}")
+
+                    # Pornește scriptul în background (nu așteaptă finalizarea)
+                    subprocess.Popen([CHROME_DEBUG_SCRIPT], shell=True,
+                                   creationflags=subprocess.CREATE_NO_WINDOW)
+
+                    print(f"⏳ Aștept 10 secunde pentru pornirea Chrome...")
+                    time.sleep(10)
+
+                    # Încearcă să se conecteze (cu retry)
+                    for attempt in range(1, 6):  # 5 încercări
+                        print(f"🔄 Încercare conectare {attempt}/5...")
+                        try:
+                            self.driver = webdriver.Chrome(options=chrome_options)
+                            self.wait = WebDriverWait(self.driver, self.timeout)
+                            self.attached_existing = True
+                            print("✅ Conectat la Chrome după repornire cu succes!")
+                            return True
+                        except WebDriverException as retry_e:
+                            if attempt < 5:
+                                print(f"⚠️  Încercare {attempt} eșuată, reîncerc în 5 secunde...")
+                                time.sleep(5)
+                            else:
+                                print(f"❌ Nu am putut conecta după 5 încercări: {retry_e}")
+                                return False
+
+                except Exception as script_error:
+                    print(f"❌ Eroare la pornirea scriptului Chrome: {script_error}")
+                    print(f"⚠️  Pornește MANUAL Chrome prin scriptul debug!")
+                    return False
+
         except WebDriverException as e:
             print(f"❌ Eroare la inițializarea WebDriver-ului: {e}")
             return False
@@ -3273,6 +3529,7 @@ class ChromePDFDownloader:
         for i, (start, end) in enumerate(actual_segments_to_download):
             print(f"📦 Procesez segmentul LIPSĂ {start}-{end} ({i+1}/{len(actual_segments_to_download)})")
 
+            # Încercă să descarce segmentul cu retry
             result = self.save_page_range(start, end, retries=3)
 
             if not result:
@@ -3297,8 +3554,25 @@ class ChromePDFDownloader:
                             break
 
                         consecutive_failures = 0
-                        print(f"✅ Recovery reușit - continui cu următoarele segmente")
+                        print(f"✅ Recovery reușit - REÎNCERC segmentul eșuat {start}-{end}")
                         time.sleep(5)
+
+                        # 🔥 REÎNCEARCĂ SEGMENTUL EȘUAT în loc să sară peste el
+                        print(f"🔄 REÎNCERC: Segmentul {start}-{end} după recovery...")
+                        retry_result = self.save_page_range(start, end, retries=3)
+
+                        if retry_result:
+                            print(f"✅ SUCCESS după recovery: Segmentul {start}-{end}")
+                            # Elimină din failed_segments dacă reușește
+                            if (start, end) in failed_segments:
+                                failed_segments.remove((start, end))
+                            # Actualizează progresul
+                            last_successful_page = end
+                            self._update_partial_issue_progress(self.current_issue_url, end, total_pages=total)
+                            print(f"✅ Progres salvat: pagini până la {end}")
+                        else:
+                            print(f"❌ Segmentul {start}-{end} a eșuat din nou după recovery")
+                            print(f"⏭️ Continui cu următorul segment...")
 
                     except Exception as e:
                         print(f"❌ Eroare în recovery: {e}")
@@ -3832,23 +4106,35 @@ class ChromePDFDownloader:
             print("🆕 Niciun issue REAL complet găsit în colecția curentă")
             return None
 
+
+
     def open_new_tab_and_download(self, url):
-        """FIXED: Se focusează pe un singur issue până la final cu verificări ultra-safe"""
+        """FIXED: Verificare simplă din JSON - fără verificare fizică"""
         normalized_url = url.rstrip('/')
 
-        # DOAR verificările esențiale la început
+        # Skip URLs din lista statică
         if normalized_url in self.dynamic_skip_urls:
             print(f"⏭️ Sar peste {url} (în skip list).")
             return False
 
+        # ✅ VERIFICARE SIMPLIFICATĂ - doar din JSON
+        # Dacă are completed_at ȘI pages > 0, e complet și procesat!
         already_done = any(
-            item.get("url") == normalized_url and item.get("completed_at") and
-            item.get("last_successful_segment_end", 0) >= (item.get("total_pages") or float('inf'))
+            item.get("url") == normalized_url and
+            item.get("completed_at") and
+            item.get("pages", 0) > 0 and
+            item.get("total_pages") and
+            item.get("pages") == item.get("total_pages")
             for item in self.state.get("downloaded_issues", [])
         )
+
         if already_done:
-            print(f"⏭️ Sar peste {url} (deja descărcat complet).")
+            print(f"⏭️ Sar peste {url} (deja descărcat și procesat complet în JSON).")
             return False
+
+
+
+
 
         print(f"\n🎯 ÎNCEP FOCUSAREA PE: {url}")
         print("=" * 60)
@@ -3950,8 +4236,10 @@ class ChromePDFDownloader:
                 return False
 
             # ==================== VERIFICARE SEGMENTE LIPSĂ ====================
-            if not limit_hit and total_pages > 0:
+            # 🔥 VERIFICARE OBLIGATORIE - chiar dacă a fost limită/CAPTCHA
+            if total_pages > 0:
                 print(f"\n🔍 VERIFICARE COMPLETITUDINE: Scanez după segmente lipsă...")
+                print(f"   (Această verificare se face ÎNTOTDEAUNA, indiferent de limită/CAPTCHA)")
 
                 all_present, missing_segments = self.verify_all_segments_present(normalized_url, total_pages)
 
@@ -3959,6 +4247,18 @@ class ChromePDFDownloader:
                     print(f"🚨 GĂURI DETECTATE: {len(missing_segments)} segmente lipsă!")
                     for start, end in missing_segments:
                         print(f"   📄 LIPSEȘTE: pages{start}-{end}")
+
+                    # Dacă a fost limită zilnică, NU încerca să recuperezi acum
+                    if limit_hit:
+                        print(f"⚠️ LIMITĂ ZILNICĂ atinsă - nu pot recupera segmentele lipsă ACUM")
+                        print(f"🔄 Segmentele lipsă vor fi re-descărcate la următoarea rulare")
+                        print(f"🛡️ BLOCHEZ marcarea ca terminat - issue rămâne PARȚIAL")
+
+                        # Actualizează progresul ca parțial
+                        self._update_partial_issue_progress(
+                            normalized_url, pages_done, total_pages=total_pages, title=title, subtitle=subtitle
+                        )
+                        return False
 
                     print(f"🔄 RECUPERARE AUTOMATĂ: Descarc segmentele lipsă...")
                     recovery_success = self.download_missing_segments(normalized_url, missing_segments)
@@ -3970,11 +4270,37 @@ class ChromePDFDownloader:
                         all_present_2, missing_2 = self.verify_all_segments_present(normalized_url, total_pages)
                         if not all_present_2:
                             print(f"❌ Încă lipsesc {len(missing_2)} segmente după recuperare!")
+                            for start, end in missing_2[:5]:  # Afișează primele 5
+                                print(f"   📄 LIPSEȘTE: pages{start}-{end}")
                             print(f"🛡️ BLOCHEZ marcarea ca terminat")
+
+                            # Marchează ca parțial pentru reluare
+                            self._update_partial_issue_progress(
+                                normalized_url, pages_done, total_pages=total_pages, title=title, subtitle=subtitle
+                            )
+                            return False
+
+                        # 🔥 CRITICAL FIX: Actualizează pages_done cu progresul REAL de pe disk după recuperare!
+                        print(f"🔄 ACTUALIZARE: Scanez disk-ul pentru progres REAL după recuperare...")
+                        final_segments_after_recovery = self.get_all_pdf_segments_for_issue(normalized_url)
+                        if final_segments_after_recovery:
+                            real_progress_after_recovery = max(seg['end'] for seg in final_segments_after_recovery)
+                            print(f"📊 Progres REAL după recuperare: {real_progress_after_recovery}/{total_pages}")
+
+                            # 🔥 ACTUALIZEAZĂ pages_done cu valoarea REALĂ!
+                            pages_done = real_progress_after_recovery
+                            print(f"✅ pages_done actualizat: {pages_done} pagini")
+                        else:
+                            print(f"⚠️ Nu am găsit segmente pe disk după recuperare!")
                             return False
                     else:
                         print(f"❌ RECUPERARE EȘUATĂ")
                         print(f"🛡️ BLOCHEZ marcarea ca terminat")
+
+                        # Marchează ca parțial pentru reluare
+                        self._update_partial_issue_progress(
+                            normalized_url, pages_done, total_pages=total_pages, title=title, subtitle=subtitle
+                        )
                         return False
                 else:
                     print(f"✅ TOATE segmentele sunt prezente - nicio gaură!")
@@ -4279,10 +4605,10 @@ class ChromePDFDownloader:
 
         # === ÎNAINTE DE A PROCESA ISSUE-URI INCOMPLETE: Finalizează issue-uri complet descărcate dar nefinalizate ===
         print(f"\n🔍 VERIFICARE PRIORITARĂ: Caut issue-uri complet descărcate dar nefinalizate din această colecție...")
-        
+
         # Apelează procesarea issue-urilor nefinalizate pentru această colecție
         self.process_completed_but_unfinalized_issues()
-        
+
         print(f"✅ Verificare completă - continuez cu issue-urile incomplete")
 
         # === PROCESEAZĂ ISSUE-URILE INCOMPLETE ===
