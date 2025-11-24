@@ -124,7 +124,7 @@ REM Rulează scriptul Python și capturează output-ul
 echo Începe rularea scriptului... >> "%LOGFILE%"
 echo. >> "%LOGFILE%"
 
-"%PYTHON_EXE%" "D:\TEST\Claude-FINAL 13 - BUN Sterge pdf pe G.py" >> "%LOGFILE%" 2>&1
+"%PYTHON_EXE%" "D:\TEST\Claude-FINAL 14 - BUN Sterge pdf pe G Firefox.py" >> "%LOGFILE%" 2>&1
 
 REM Verifică codul de ieșire
 if %errorlevel% equ 0 (
